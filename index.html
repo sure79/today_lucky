@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>오늘의 운세 (자동 날짜 기반)</title>
+  <title>오늘의 운세 (자동 날짜 기반, 모바일 최적화)</title>
   <!-- React, ReactDOM (개발 버전) -->
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
@@ -12,13 +12,14 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
-  <div id="root" class="max-w-screen-md mx-auto py-6 px-4"></div>
+  <!-- 모바일 우선 레이아웃: 작은 화면에서는 w-full, 큰 화면부터 최대 폭 제한 -->
+  <div id="root" class="w-full sm:max-w-md mx-auto py-6 px-4"></div>
 
   <script type="text/babel">
     // ====================== Card UI (Tailwind) =======================
     const Card = ({ children, className = "" }) => {
       return (
-        <div className={`border border-gray-200 rounded-xl shadow-md ${className}`}>
+        <div className={`border border-gray-200 rounded-lg shadow-sm mb-6 ${className}`}>
           {children}
         </div>
       );
@@ -33,7 +34,8 @@
     };
 
     const CardTitle = ({ children, className = "" }) => {
-      return <h2 className={`text-lg font-bold ${className}`}>{children}</h2>;
+      // 모바일에서는 text-base, 좀 더 큰 화면에서 text-lg 이상으로
+      return <h2 className={`text-base sm:text-lg font-bold ${className}`}>{children}</h2>;
     };
 
     const CardContent = ({ children, className = "" }) => {
@@ -47,7 +49,10 @@
       else if(score >= 50) barColor = 'bg-yellow-500';
       return (
         <div className="w-full bg-gray-200 rounded-full h-2">
-          <div className={`${barColor} h-2 rounded-full`} style={{ width: `${score}%` }}></div>
+          <div
+            className={`${barColor} h-2 rounded-full transition-all duration-300`}
+            style={{ width: `${score}%` }}
+          />
         </div>
       );
     };
@@ -65,8 +70,7 @@
         powerful: false
       };
 
-      // 여기에 번호별로 if문이나 switch문을 통해 운세를 확장
-      // 이하 간략 예시 -> 사용자에게서 복사된 본문(표) 붙여넣기
+      // (원본 switch 문 그대로 유지)
       switch (num) {
         case 0:
     fortune.health.push('😴 오늘은 기운이 다소 떨어져 집중력이 떨어질 수 있어요. 규칙적인 수면과 영양 보충이 중요합니다.');
@@ -302,7 +306,7 @@
       return fortune;
     }
 
-    // ====================== 해운번호 계산 로직 =======================
+    // ====================== 오늘 해운번호 계산 (calcTodayHaeun) =======================
     function calcTodayHaeun() {
       const today = new Date();
       const yyyy = today.getFullYear();
@@ -323,20 +327,17 @@
 
     // ====================== 점수 계산 함수 (카테고리별) =======================
     function getCategoryScore(category, A, B) {
-      // 임의의 seed: A, B, 카테고리명으로 seed를 만들어 
-      // 0~100 사이 랜덤 비슷하게 뽑아줌
       const seedStr = category + A + '-' + B;
       let hash = 0;
       for (let i=0; i<seedStr.length; i++){
         hash = ((hash << 5) - hash) + seedStr.charCodeAt(i);
         hash = hash & hash; // Convert to 32bit integer
       }
-      // 해시값 -> 0~100 변환
       let raw = Math.abs(hash) % 101;
       return raw;
     }
 
-    // ====================== 두 개 번호 병합? 여기선 단일 =======================
+    // ====================== 두 개 번호의 운세 merge =======================
     function mergeFortunes(A, B) {
       const fA = getFortuneByNumber(A);
       const fB = getFortuneByNumber(B);
@@ -360,19 +361,16 @@
       React.useEffect(() => {
         // 1) 오늘 해운번호 계산
         const { A, B } = calcTodayHaeun();
-        // 2) 오늘 운세 DB 가져오기 (A,B를 merge)
+        // 2) 운세 합성
         const merged = mergeFortunes(A, B);
-
-        // 강력 기운 여부? -> A나 B가 특정값일 때?
-        // 여기선 아무 조건 없이 skip, 필요 시 로직 추가
+        // (예: 강력 기운 체크 로직을 추가 가능하지만 생략)
         merged.powerful = false;
 
         // 카테고리별 점수
         const categories = ['health','move','exam','pass','love','wealth','caution'];
         const scores = {};
         for (let cat of categories) {
-          let sc = getCategoryScore(cat, A, B);
-          scores[cat] = sc;
+          scores[cat] = getCategoryScore(cat, A, B);
         }
         merged.scores = scores;
 
@@ -380,6 +378,7 @@
         const now = new Date();
         const weekDays = ['일','월','화','수','목','금','토'];
         const dayOfWeek = weekDays[now.getDay()];
+
         setFortune({
           dayString: `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일 (${dayOfWeek})`,
           haeunStr: `${A}/${B}`,
@@ -409,13 +408,15 @@
       return (
         <div className="space-y-6">
           {/* 헤더 카드 */}
-          <Card className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-            <CardHeader className="bg-transparent">
-              <CardTitle className="text-2xl font-bold text-center">오늘의 운세</CardTitle>
+          <Card className="bg-gradient-to-r from-purple-400 to-pink-500 text-white">
+            <CardHeader className="border-none bg-transparent">
+              <CardTitle className="text-center text-xl sm:text-2xl font-bold">
+                오늘의 운세
+              </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="bg-transparent pt-0">
               <p className="text-sm text-center">
-                매일 자동으로 오늘 날짜를 기반으로 해운번호를 계산하여 운세를 알려드립니다!
+                매일 자동으로 해운번호를 계산하여<br />오늘의 운세를 알려드립니다!
               </p>
             </CardContent>
           </Card>
@@ -423,14 +424,18 @@
           {/* 운세 결과 카드 */}
           <Card>
             <CardHeader>
-              <CardTitle>오늘 {fortune.dayString}</CardTitle>
+              <CardTitle>
+                {fortune.dayString}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm mb-2">
-                오늘의 해운번호: <span className="font-bold text-blue-500">{fortune.haeunStr}</span>
+                오늘의 해운번호:&nbsp; 
+                <span className="font-semibold text-blue-500">{fortune.haeunStr}</span>
               </p>
+
               {fortune.powerful && (
-                <div className="p-2 bg-orange-50 border border-orange-300 text-xs text-red-600 font-semibold mb-2">
+                <div className="p-2 bg-orange-50 border border-orange-300 text-xs text-red-600 font-semibold mb-3">
                   ※ 오늘은 강력한 에너지가 함께 합니다!
                 </div>
               )}
@@ -442,7 +447,9 @@
                   </p>
                   <ScoreBar score={fortune.scores[cat.key]} />
                   <ul className="pl-4 list-disc text-xs text-slate-700 space-y-1 mt-1">
-                    {fortune[cat.key].map((item, i) => <li key={i}>{item}</li>)}
+                    {fortune[cat.key].map((item, i) => (
+                      <li key={i}>{item}</li>
+                    ))}
                   </ul>
                 </div>
               ))}
